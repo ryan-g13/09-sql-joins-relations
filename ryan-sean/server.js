@@ -7,7 +7,8 @@ const bodyParser = require('body-parser');
 const PORT = process.env.PORT || 3000;
 const app = express();
 
-const conString = 'postgres://postgres:98765@localhost:5432/postgres';
+//const conString = 'postgres://postgres:98765@localhost:5432/postgres';
+const conString = 'postgres://localhost:5432';
 const client = new pg.Client(conString);
 client.connect();
 client.on('error', error => {
@@ -36,12 +37,13 @@ app.get('/articles', (request, response) => {
 
 app.post('/articles', (request, response) => {
   client.query(
-    `INSERT INTO authors (author, "authorUrl") VALUES ($1, $2);`,
+    `INSERT INTO authors (author, "authorUrl") VALUES ($1, $2) ON CONFLICT do nothing;`,
     [
       request.body.author,
       request.body.authorUrl],
     function(err) {
       if (err) console.error(err);
+      console.log('q1');
       // REVIEW: This is our second query, to be executed when this first query is complete.
       queryTwo();
     }
@@ -49,11 +51,11 @@ app.post('/articles', (request, response) => {
 
   function queryTwo() {
     client.query(
-      `SELECT DISTINCT author FROM authors;`,
+      `SELECT author, author_id FROM authors WHERE author=$1;`,
       [request.body.author],
       function(err, result) {
         if (err) console.error(err);
-
+        console.log('q2');
         // REVIEW: This is our third query, to be executed when the second is complete. We are also passing the author_id into our third query.
         queryThree(result.rows[0].author_id);
       }
@@ -62,12 +64,12 @@ app.post('/articles', (request, response) => {
 
   function queryThree(author_id) {
     client.query(
-      `SELECT * FROM articles INNER JOIN authors ON articles.author_id = authors.author_id;`,
+      `INSERT INTO articles(title, category, "publishedOn", body,author_id) VALUES($1,$2,$3,$4,$5);`,
       [request.body.title, 
         request.body.category,
         request.body.publishedOn,
         request.body.body,
-        request.body.author_id
+        author_id
       ],
       function(err) {
         if (err) console.error(err);
@@ -82,12 +84,12 @@ app.put('/articles/:id', function(request, response) {
     `UPDATE authors SET author=$1, "authorUrl"=$2 WHERE author_id=$3;`,
     [request.body.author,
       request.body.authorUrl,
-      request.params.id
+      request.body.author_id
     ]
   )
     .then(() => {
       client.query(
-        `UPDATE articles SET title=$1, category=$2, "publishedOn"=$3, body=$4, author_id=$5`,
+        `UPDATE articles SET title=$1, category=$2, "publishedOn"=$3, body=$4 WHERE article_id=$5;`,
         [request.body.title,
           request.body.category,
           request.body.publishedOn,
