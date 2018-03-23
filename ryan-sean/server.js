@@ -43,7 +43,6 @@ app.post('/articles', (request, response) => {
       request.body.authorUrl],
     function(err) {
       if (err) console.error(err);
-      console.log('q1');
       // REVIEW: This is our second query, to be executed when this first query is complete.
       queryTwo();
     }
@@ -55,7 +54,6 @@ app.post('/articles', (request, response) => {
       [request.body.author],
       function(err, result) {
         if (err) console.error(err);
-        console.log('q2');
         // REVIEW: This is our third query, to be executed when the second is complete. We are also passing the author_id into our third query.
         queryThree(result.rows[0].author_id);
       }
